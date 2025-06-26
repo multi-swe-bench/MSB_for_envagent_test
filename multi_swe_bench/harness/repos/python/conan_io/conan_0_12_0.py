@@ -20,8 +20,8 @@ class ImageDefault(Image):
     def config(self) -> Config:
         return self._config
 
-    def dependency(self) -> str:
-        return "python:3.7-slim"
+    def dependency(self) -> Image | None:
+        return "python:3.5-buster"
     
     def image_prefix(self) -> str:
         return "envagent"
@@ -49,56 +49,48 @@ class ImageDefault(Image):
                 "prepare.sh",
                 """ls -la
 ###ACTION_DELIMITER###
-cat runtime.txt
+ls -la conans
 ###ACTION_DELIMITER###
-cat requirements.txt
+pip install -r conans/requirements_dev.txt
 ###ACTION_DELIMITER###
-cat setup.cfg
+echo 'PYTHONPATH=$PYTHONPATH:$(pwd) nosetests --verbose' > test_commands.sh
 ###ACTION_DELIMITER###
-cat .travis.yml
+bash /home/conan/test_commands.sh
 ###ACTION_DELIMITER###
-cat Makefile
+pip install pyyaml
 ###ACTION_DELIMITER###
-python3 --version && python --version && which python3.6 && which python3.7
+bash /home/conan/test_commands.sh
 ###ACTION_DELIMITER###
-apt-get install -y python3.6 python3.6-venv python3.6-dev
+pip install patch
 ###ACTION_DELIMITER###
-apt-get update
+bash /home/conan/test_commands.sh
 ###ACTION_DELIMITER###
-apt-get install -y python3.6 python3.6-venv python3.6-dev
+pip install requests
 ###ACTION_DELIMITER###
-echo 'pytest --cov=pydantic -rA --tb=no -p no:cacheprovider -W ignore::DeprecationWarning:distutils
-python tests/try_assert.py' > /home/pydantic/test_commands.sh && chmod +x /home/pydantic/test_commands.sh
+bash /home/conan/test_commands.sh
 ###ACTION_DELIMITER###
-make install
+pip install colorama
 ###ACTION_DELIMITER###
-apt-get install -y make
+bash /home/conan/test_commands.sh
 ###ACTION_DELIMITER###
-make install
+
 ###ACTION_DELIMITER###
-bash /home/pydantic/test_commands.sh
+pip install pyjwt
 ###ACTION_DELIMITER###
-echo 'pytest --cov=pydantic -rA --tb=no -p no:cacheprovider -W ignore::DeprecationWarning -p no:warnings
-python tests/try_assert.py' > /home/pydantic/test_commands.sh && chmod +x /home/pydantic/test_commands.sh
+pip install fasteners
 ###ACTION_DELIMITER###
-bash /home/pydantic/test_commands.sh
+bash /home/conan/test_commands.sh
 ###ACTION_DELIMITER###
-sed -i 's/^    error/    # error/' setup.cfg
+pip install bottle
 ###ACTION_DELIMITER###
-bash /home/pydantic/test_commands.sh
-###ACTION_DELIMITER###
-echo 'pytest --cov=pydantic -rA --tb=no -p no:cacheprovider
-python tests/try_assert.py' > /home/pydantic/test_commands.sh && chmod +x /home/pydantic/test_commands.sh
-###ACTION_DELIMITER###
-bash /home/pydantic/test_commands.sh"""
+bash /home/conan/test_commands.sh"""
             ),
             File(
                 ".",
                 "run.sh",
                 """#!/bin/bash
 cd /home/{pr.repo}
-pytest --cov=pydantic -rA --tb=no -p no:cacheprovider
-python tests/try_assert.py
+PYTHONPATH=$PYTHONPATH:$(pwd) nosetests --verbose
 
 """.format(
                     pr=self.pr
@@ -113,8 +105,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn /home/test.patch; then
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-pytest --cov=pydantic -rA --tb=no -p no:cacheprovider
-python tests/try_assert.py
+PYTHONPATH=$PYTHONPATH:$(pwd) nosetests --verbose
 
 """.format(
                     pr=self.pr
@@ -129,8 +120,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn  /home/test.patch /home/fi
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-pytest --cov=pydantic -rA --tb=no -p no:cacheprovider
-python tests/try_assert.py
+PYTHONPATH=$PYTHONPATH:$(pwd) nosetests --verbose
 
 """.format(
                     pr=self.pr
@@ -149,7 +139,7 @@ python tests/try_assert.py
 
 # Choose an appropriate base image based on the project's requirements - replace [base image] with actual base image
 # For example: FROM ubuntu:**, FROM python:**, FROM node:**, FROM centos:**, etc.
-FROM python:3.7-slim
+FROM python:3.5-buster
 
 ## Set noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -166,11 +156,11 @@ RUN if [ ! -f /bin/bash ]; then         if command -v apk >/dev/null 2>&1; then 
 WORKDIR /home/
 COPY fix.patch /home/
 COPY test.patch /home/
-RUN git clone https://github.com/pydantic/pydantic.git /home/pydantic
+RUN git clone https://github.com/conan-io/conan.git /home/conan
 
-WORKDIR /home/pydantic
+WORKDIR /home/conan
 RUN git reset --hard
-RUN git checkout 799cd370fe78b4172a81f5dc6ea5ad086bbd2978
+RUN git checkout 3eaafa1a2532f022d9ad2c6168222491349862d1
 
 RUN git checkout {pr.base.sha}"""
         dockerfile_content += f"""
@@ -179,8 +169,8 @@ RUN git checkout {pr.base.sha}"""
         return dockerfile_content.format(pr=self.pr)
 
 
-@Instance.register("pydantic", "pydantic_v1_0b1")
-class PYDANTIC_V1_0B1(Instance):
+@Instance.register("conan-io", "conan_0_12_0")
+class CONAN_0_12_0(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
         self._pr = pr
@@ -215,18 +205,32 @@ class PYDANTIC_V1_0B1(Instance):
     def parse_log(self, log: str) -> TestResult:
 
         # Parse the log content and extract test execution results.
+        # Track the most severe status for each test.
+        import re
+        import json
+        # Severity order: fail/error > skipped > ok
+        status_priority = {"fail": 3, "error": 3, "skipped": 2, "ok": 1}
+        test_status = {}
+        pattern = re.compile(r"^(.*?)(?:\s*\([^)]*\))?\s*\.\.\.\s*(ok|FAIL|ERROR|skipped)$", re.IGNORECASE)
+        for line in log.splitlines():
+            match = pattern.match(line.strip())
+            if match:
+                test_name = match.group(1).strip()
+                status = match.group(2).lower()
+                prev_status = test_status.get(test_name)
+                # Only update if this status is more severe
+                if (prev_status is None or status_priority[status] > status_priority[prev_status]):
+                    test_status[test_name] = status
         passed_tests = set()
         failed_tests = set()
         skipped_tests = set()
-        import re
-        import json
-        # Regex patterns for PASSED, FAILED, and SKIPPED
-        passed_pattern = re.compile(r"^PASSED ([^\s]+)", re.MULTILINE)
-        failed_pattern = re.compile(r"^FAILED ([^\s]+)", re.MULTILINE)
-        skipped_pattern = re.compile(r"^SKIPPED \[\d+\] ([^:]+)", re.MULTILINE)
-        passed_tests.update(passed_pattern.findall(log))
-        failed_tests.update(failed_pattern.findall(log))
-        skipped_tests.update(skipped_pattern.findall(log))
+        for test_name, status in test_status.items():
+            if status == "ok":
+                passed_tests.add(test_name)
+            elif status in ("fail", "error"):
+                failed_tests.add(test_name)
+            elif status == "skipped":
+                skipped_tests.add(test_name)
         parsed_results = {
             "passed_tests": passed_tests,
             "failed_tests": failed_tests,
