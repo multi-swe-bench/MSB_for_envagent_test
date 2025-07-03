@@ -20,8 +20,8 @@ class ImageDefault(Image):
     def config(self) -> Config:
         return self._config
 
-    def dependency(self) -> Image | None:
-        return "python:3.8-slim"
+    def dependency(self) -> str:
+        return "python:3.9-slim"
     
     def image_prefix(self) -> str:
         return "envagent"
@@ -47,26 +47,72 @@ class ImageDefault(Image):
             File(
                 ".",
                 "prepare.sh",
-                """ls -la
+                """ls -F
 ###ACTION_DELIMITER###
-python -m pip install -r conans/requirements_server.txt
+pip install -r conans/requirements_dev.txt
 ###ACTION_DELIMITER###
-python -m pip install -r conans/requirements_dev.txt
+pip install .
 ###ACTION_DELIMITER###
-pip install -e .
+echo 'nosetests --verbose' > /home/conan/test_commands.sh
 ###ACTION_DELIMITER###
-echo 'python -m pytest .' > /home/conan/test_commands.sh
+bash /home/conan/test_commands.sh
 ###ACTION_DELIMITER###
-chmod +x /home/conan/test_commands.sh
+pip install markupsafe==2.0.1
 ###ACTION_DELIMITER###
-export PYTHONPATH=$PYTHONPATH:$(pwd) && bash /home/conan/test_commands.sh"""
+bash /home/conan/test_commands.sh
+###ACTION_DELIMITER###
+echo 'nosetests -A "not slow and not svn"' > /home/conan/test_commands.sh
+###ACTION_DELIMITER###
+bash /home/conan/test_commands.sh
+###ACTION_DELIMITER###
+pip install --upgrade Jinja2 MarkupSafe
+###ACTION_DELIMITER###
+pip install Jinja2==2.11.3
+###ACTION_DELIMITER###
+echo 'nosetests -A "not slow and not svn" --verbose' > /home/conan/test_commands.sh
+###ACTION_DELIMITER###
+apt-get update
+###ACTION_DELIMITER###
+apt-get install -y build-essential
+###ACTION_DELIMITER###
+bash /home/conan/test_commands.sh
+###ACTION_DELIMITER###
+pip install MarkupSafe==2.0.1 Jinja2==2.11.3
+###ACTION_DELIMITER###
+pip install -r conans/requirements.txt
+###ACTION_DELIMITER###
+
+###ACTION_DELIMITER###
+pip show MarkupSafe Jinja2
+###ACTION_DELIMITER###
+pip install -r conans/requirements_server.txt
+###ACTION_DELIMITER###
+
+###ACTION_DELIMITER###
+bash /home/conan/test_commands.sh
+###ACTION_DELIMITER###
+
+###ACTION_DELIMITER###
+apt-get install -y cmake
+###ACTION_DELIMITER###
+bash /home/conan/test_commands.sh
+###ACTION_DELIMITER###
+
+###ACTION_DELIMITER###
+mkdir -p /root/.conan/profiles
+###ACTION_DELIMITER###
+
+###ACTION_DELIMITER###
+echo "[settings]\nos=Linux\nos_build=Linux\narch=x86_64\narch_build=x86_64\ncompiler=gcc\ncompiler.version=12\ncompiler.libcxx=libstdc++11\nbuild_type=Release" > /root/.conan/profiles/default
+###ACTION_DELIMITER###
+bash /home/conan/test_commands.sh"""
             ),
             File(
                 ".",
                 "run.sh",
                 """#!/bin/bash
 cd /home/{pr.repo}
-python -m pytest .
+nosetests -A "not slow and not svn" --verbose
 
 """.format(
                     pr=self.pr
@@ -81,7 +127,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn /home/test.patch; then
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-python -m pytest .
+nosetests -A "not slow and not svn" --verbose
 
 """.format(
                     pr=self.pr
@@ -96,7 +142,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn  /home/test.patch /home/fi
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-python -m pytest .
+nosetests -A "not slow and not svn" --verbose
 
 """.format(
                     pr=self.pr
@@ -115,7 +161,7 @@ python -m pytest .
 
 # Choose an appropriate base image based on the project's requirements - replace [base image] with actual base image
 # For example: FROM ubuntu:**, FROM python:**, FROM node:**, FROM centos:**, etc.
-FROM python:3.8-slim
+FROM python:3.9-slim
 
 ## Set noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -136,7 +182,7 @@ RUN git clone https://github.com/conan-io/conan.git /home/conan
 
 WORKDIR /home/conan
 RUN git reset --hard
-RUN git checkout b43eb83956f053a47cc3897cfdd57b9da13a16e6
+RUN git checkout f67bf29323a412d90e62acd6b08e9ff67125b048
 
 RUN git checkout {pr.base.sha}"""
         dockerfile_content += f"""
@@ -145,8 +191,8 @@ RUN git checkout {pr.base.sha}"""
         return dockerfile_content.format(pr=self.pr)
 
 
-@Instance.register("conan-io", "conan_2_0_7")
-class CONAN_2_0_7(Instance):
+@Instance.register("conan-io", "conan_1_19_3")
+class CONAN_1_19_3(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
         self._pr = pr
@@ -181,36 +227,36 @@ class CONAN_2_0_7(Instance):
     def parse_log(self, log: str) -> TestResult:
 
         # Parse the log content and extract test execution results.
-        passed_tests = set() # Tests that passed successfully
-        failed_tests = set() # Tests that failed
-        skipped_tests = set() # Tests that were skipped
+        passed_tests = set()
+        failed_tests = set()
+        skipped_tests = set()
         import re
         import json
-        # 1. Extract detailed failed tests (function-level) from 'FAILED' lines
-        failed_test_pattern = re.compile(r'^FAILED (.+)$', re.MULTILINE)
-        for match in failed_test_pattern.finditer(log):
-            failed_tests.add(match.group(1).strip())
-        # 2. Extract error test files from 'ERROR' lines (collection errors)
-        error_test_pattern = re.compile(r'^ERROR ([^\s]+)', re.MULTILINE)
-        for match in error_test_pattern.finditer(log):
-            failed_tests.add(match.group(1).strip())
-        # 3. Parse summary lines for test files and status characters
-        summary_pattern = re.compile(r'^(\S+\.py)\s+([.sFEfx]+)', re.MULTILINE)
-        for match in summary_pattern.finditer(log):
-            test_file = match.group(1).strip()
-            status_str = match.group(2)
-            for idx, status in enumerate(status_str):
-                # Compose a test name: file::test_idx (since function names are not available)
-                test_name = f"{test_file}::test_{idx+1}"
-                if status == '.':
-                    passed_tests.add(test_name)
-                elif status in ('F', 'E'):
-                    # Only add if not already in failed_tests (from detailed lines)
-                    if not any(test_name.startswith(failed) for failed in failed_tests):
-                        failed_tests.add(test_name)
-                elif status == 's':
-                    skipped_tests.add(test_name)
-                # Ignore 'x', 'X', etc. for now (xfail/xpass)
+        # TODO: Implement the parse_log function
+        # Implement the log parsing logic here
+        for line in log.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            # Clean up the line by removing any additional information
+            if "(" in line and ")" in line:
+                line = re.sub(r'\s*\(conan\..*\)\s*', '', line)
+            line = re.sub(r'\s*->.*', '', line)
+            if line.endswith("... OK"):
+                test_name = line[:-6].strip().strip('\'')
+                passed_tests.add(test_name)
+            elif line.endswith("... ok"):
+                test_name = line[:-6].strip().strip('\'')
+                passed_tests.add(test_name)
+            elif line.endswith("... ERROR"):
+                test_name = line[:-7].strip().strip('\'')
+                failed_tests.add(test_name)
+            elif line.endswith("... FAILURE"):
+                test_name = line[:-9].strip().strip('\'')
+                failed_tests.add(test_name)
+            elif " ... SKIP" in line:
+                test_name = line.split(" ... SKIP")[0].strip().strip('\'')
+                skipped_tests.add(test_name)
         parsed_results = {
             "passed_tests": passed_tests,
             "failed_tests": failed_tests,

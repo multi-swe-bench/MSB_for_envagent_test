@@ -20,8 +20,8 @@ class ImageDefault(Image):
     def config(self) -> Config:
         return self._config
 
-    def dependency(self) -> Image | None:
-        return "python:3.8-slim"
+    def dependency(self) -> str:
+        return "python:3.5-slim"
     
     def image_prefix(self) -> str:
         return "envagent"
@@ -47,34 +47,34 @@ class ImageDefault(Image):
             File(
                 ".",
                 "prepare.sh",
-                """ls -al
+                """ls -F
 ###ACTION_DELIMITER###
-ls -al conans
+pip install -r conans/requirements_dev.txt
 ###ACTION_DELIMITER###
-python3 -m pip install -r conans/requirements.txt && python3 -m pip install -r conans/requirements_server.txt && python3 -m pip install -r conans/requirements_dev.txt
+pip install .
+###ACTION_DELIMITER###
+nosetests
 ###ACTION_DELIMITER###
 apt-get update
 ###ACTION_DELIMITER###
-python3 -m pip install -r conans/requirements.txt && python3 -m pip install -r conans/requirements_server.txt && python3 -m pip install -r conans/requirements_dev.txt
+apt-get install -y gcc cmake
 ###ACTION_DELIMITER###
-python3 -m pip install -e .
+nosetests -A "not slow and not svn"
 ###ACTION_DELIMITER###
-echo 'export PYTHONPATH=$PYTHONPATH:$(pwd)
-export CONAN_COMPILER=gcc
-export CONAN_COMPILER_VERSION=4.8
-pytest --no-header -rA --tb=no -p no:cacheprovider conans/test' > test_commands.sh
+tox
 ###ACTION_DELIMITER###
-bash /home/conan/test_commands.sh"""
+pip install tox
+###ACTION_DELIMITER###
+tox
+###ACTION_DELIMITER###
+echo 'nosetests -v' > /home/conan/test_commands.sh"""
             ),
             File(
                 ".",
                 "run.sh",
                 """#!/bin/bash
 cd /home/{pr.repo}
-export PYTHONPATH=$PYTHONPATH:$(pwd)
-export CONAN_COMPILER=gcc
-export CONAN_COMPILER_VERSION=4.8
-pytest --no-header -rA --tb=no -p no:cacheprovider conans/test
+nosetests -v
 
 """.format(
                     pr=self.pr
@@ -89,10 +89,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn /home/test.patch; then
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-export PYTHONPATH=$PYTHONPATH:$(pwd)
-export CONAN_COMPILER=gcc
-export CONAN_COMPILER_VERSION=4.8
-pytest --no-header -rA --tb=no -p no:cacheprovider conans/test
+nosetests -v
 
 """.format(
                     pr=self.pr
@@ -107,10 +104,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn  /home/test.patch /home/fi
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-export PYTHONPATH=$PYTHONPATH:$(pwd)
-export CONAN_COMPILER=gcc
-export CONAN_COMPILER_VERSION=4.8
-pytest --no-header -rA --tb=no -p no:cacheprovider conans/test
+nosetests -v
 
 """.format(
                     pr=self.pr
@@ -129,7 +123,7 @@ pytest --no-header -rA --tb=no -p no:cacheprovider conans/test
 
 # Choose an appropriate base image based on the project's requirements - replace [base image] with actual base image
 # For example: FROM ubuntu:**, FROM python:**, FROM node:**, FROM centos:**, etc.
-FROM python:3.8-slim
+FROM python:3.5-slim
 
 ## Set noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -150,7 +144,7 @@ RUN git clone https://github.com/conan-io/conan.git /home/conan
 
 WORKDIR /home/conan
 RUN git reset --hard
-RUN git checkout f73ada4ca23bfc0c65c944af0b8acb450fe68111
+RUN git checkout baead56251f9deebbad4a48885c29f8b6b601353
 
 RUN git checkout {pr.base.sha}"""
         dockerfile_content += f"""
@@ -159,8 +153,8 @@ RUN git checkout {pr.base.sha}"""
         return dockerfile_content.format(pr=self.pr)
 
 
-@Instance.register("conan-io", "conan_1_43_2")
-class CONAN_1_43_2(Instance):
+@Instance.register("conan-io", "conan_1_12_2")
+class CONAN_1_12_2(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
         self._pr = pr
@@ -200,28 +194,22 @@ class CONAN_1_43_2(Instance):
         skipped_tests = set()
         import re
         import json
-        # Implement the log parsing logic here
-        # Patterns for test results
-        passed_re = re.compile(r"^PASSED +(.+)$", re.MULTILINE)
-        failed_re = re.compile(r"^FAILED +(.+)$", re.MULTILINE)
-        xfail_re = re.compile(r"^XFAIL +(.+)$", re.MULTILINE)
-        skipped_re = re.compile(r"^SKIPPED \[\d+\] ([^:]+:\d+):", re.MULTILINE)
-        error_re = re.compile(r"^ERROR +(.+)$", re.MULTILINE)
-        # Passed tests
-        for m in passed_re.finditer(log):
-            passed_tests.add(m.group(1).strip())
-        # Failed tests
-        for m in failed_re.finditer(log):
-            failed_tests.add(m.group(1).strip())
-        # XFAIL (expected fail, treat as skipped)
-        for m in xfail_re.finditer(log):
-            skipped_tests.add(m.group(1).strip())
-        # Skipped tests (file:line)
-        for m in skipped_re.finditer(log):
-            skipped_tests.add(m.group(1).strip())
-        # Collection errors (treat as failed)
-        for m in error_re.finditer(log):
-            failed_tests.add(m.group(1).strip())
+        # TODO: Implement the parse_log function
+        test_results = {}
+        for line in log.splitlines():
+            match = re.match(r'^(.* \(.*?\)) \.\.\. (.*)$', line)
+            if match:
+                test_name = match.group(1).strip()
+                status = match.group(2).strip()
+                if test_name not in test_results:
+                    test_results[test_name] = status
+        for test_name, status in test_results.items():
+            if status == "ok":
+                passed_tests.add(test_name)
+            elif status == "ERROR":
+                failed_tests.add(test_name)
+            elif status == "SKIP":
+                skipped_tests.add(test_name)
         parsed_results = {
             "passed_tests": passed_tests,
             "failed_tests": failed_tests,
