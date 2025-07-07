@@ -18,3 +18,4 @@ from multi_swe_bench.harness.repos.python.pandas_dev import *
 from multi_swe_bench.harness.repos.python.omry import *
 from multi_swe_bench.harness.repos.python.edgedb import *
 from multi_swe_bench.harness.repos.python.dask import *
+from multi_swe_bench.harness.repos.python.Deltares import *
