@@ -44,3 +44,7 @@ from multi_swe_bench.harness.repos.python.vprusso import *
 from multi_swe_bench.harness.repos.python.twisted import *
 from multi_swe_bench.harness.repos.python.pydicom import *
 from multi_swe_bench.harness.repos.python.mne_tools import *
+from multi_swe_bench.harness.repos.python.cocotb import *
+from multi_swe_bench.harness.repos.python.pyro_ppl import *
+from multi_swe_bench.harness.repos.python.wemake_services import *
+from multi_swe_bench.harness.repos.python.hylang import *
