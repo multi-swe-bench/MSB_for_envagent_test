@@ -44,3 +44,9 @@ from multi_swe_bench.harness.repos.python.vprusso import *
 from multi_swe_bench.harness.repos.python.twisted import *
 from multi_swe_bench.harness.repos.python.pydicom import *
 from multi_swe_bench.harness.repos.python.mne_tools import *
+from multi_swe_bench.harness.repos.python.aio_libs import *
+from multi_swe_bench.harness.repos.python.kornia import *
+from multi_swe_bench.harness.repos.python.unit8co import *
+from multi_swe_bench.harness.repos.python.modin_project import *
+from multi_swe_bench.harness.repos.python.RadioAstronomySoftwareGroup import *
+from multi_swe_bench.harness.repos.python.catalystneuro import *
