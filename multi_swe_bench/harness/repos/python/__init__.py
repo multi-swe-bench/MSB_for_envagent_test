@@ -1,4 +1,3 @@
-from multi_swe_bench.harness.repos.python.astropy import *
 from multi_swe_bench.harness.repos.python.django import *
 from multi_swe_bench.harness.repos.python.matplotlib import *
 from multi_swe_bench.harness.repos.python.mwaskom import *
@@ -24,7 +23,6 @@ from multi_swe_bench.harness.repos.python.falconry import *
 from multi_swe_bench.harness.repos.python.Pyomo import *
 from multi_swe_bench.harness.repos.python.CS_SI import *
 from multi_swe_bench.harness.repos.python.geopandas import *
-from multi_swe_bench.harness.repos.python.omry import *
 from multi_swe_bench.harness.repos.python.feature_engine import *
 from multi_swe_bench.harness.repos.python.haddocking import *
 from multi_swe_bench.harness.repos.python.conan_io import *
@@ -57,25 +55,9 @@ from multi_swe_bench.harness.repos.python.qiskit import *
 from multi_swe_bench.harness.repos.python.networkx import *
 from multi_swe_bench.harness.repos.python.plotly import *
 from multi_swe_bench.harness.repos.python.vega import *
-
 from multi_swe_bench.harness.repos.python.alteryx import *
 from multi_swe_bench.harness.repos.python.aesara_devs import *
-
 from multi_swe_bench.harness.repos.python.aio_libs import *
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+from multi_swe_bench.harness.repos.python.aws import *
+from multi_swe_bench.harness.repos.python.omry import *
+from multi_swe_bench.harness.repos.python.asdf_format import *
