@@ -61,5 +61,8 @@ from multi_swe_bench.harness.repos.python.aio_libs import *
 from multi_swe_bench.harness.repos.python.aws import *
 from multi_swe_bench.harness.repos.python.omry import *
 from multi_swe_bench.harness.repos.python.asdf_format import *
-from multi_swe_bench.harness.repos.python.canonical import *
 from multi_swe_bench.harness.repos.python.cekit import *
+from multi_swe_bench.harness.repos.python.cloud_custodian import *
+from multi_swe_bench.harness.repos.python.cloud_custodian import *
+from multi_swe_bench.harness.repos.python.cloud_custodian import *
+from multi_swe_bench.harness.repos.python.canonical import *
