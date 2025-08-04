@@ -49,26 +49,82 @@ class ImageDefault(Image):
                 "prepare.sh",
                 """ls
 ###ACTION_DELIMITER###
-./bootstrap.sh
+pip install -e . pytest==5.2.1 pytest-cov gunicorn==20.0.4 httpcore==0.11.* multidict>=5.0,<6.0
 ###ACTION_DELIMITER###
-apt-get update && apt-get install -y curl
+pip3 install -e . 'pytest==5.2.1' pytest-cov 'gunicorn==20.0.4' 'httpcore==0.11.*' 'multidict>=5.0,<6.0'
 ###ACTION_DELIMITER###
-./bootstrap.sh
+echo 'pytest -v tests' > test_commands.sh
 ###ACTION_DELIMITER###
-./bin/reframe -V
+cat test_commands.sh
 ###ACTION_DELIMITER###
-./test_reframe.py -v
+bash test_commands.sh
 ###ACTION_DELIMITER###
-echo "./test_reframe.py -v" > test_commands.sh
+pip3 install pytest-cov==2.8.1
 ###ACTION_DELIMITER###
-cat test_commands.sh"""
+bash test_commands.sh
+###ACTION_DELIMITER###
+pip3 install uvicorn beautifulsoup4 pytest-dependency
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+pip3 install pytest-sanic pytest-sugar pytest-benchmark chardet==3.*
+###ACTION_DELIMITER###
+pip3 install httpx==0.15.4 websockets==8.1
+###ACTION_DELIMITER###
+pip3 install pytest-sanic==1.7.0
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+echo 'pytest -v tests --cov sanic --full-trace' > test_commands.sh
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+echo 'SANIC_NO_LOGO=true pytest -v tests --cov sanic --full-trace' > test_commands.sh
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+echo 'pytest -v tests --cov sanic --full-trace --forked --timeout=60' > test_commands.sh
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+pip3 install pytest-xdist pytest-timeout
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+pip3 install pytest-forked
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+echo 'pytest -v tests --cov sanic --full-trace --forked --timeout=120' > test_commands.sh
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+pip3 install pytest==5.2.1
+###ACTION_DELIMITER###
+pip3 install pytest-sugar==0.9.4 pytest-benchmark==3.2.3 pytest-xdist==1.34.0 pytest-timeout==1.4.2
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+echo 'SANIC_NO_LOGO=true pytest -v tests --cov sanic --full-trace -n auto --timeout=180' > test_commands.sh
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+apt-get update && apt-get install -y libuv-dev gcc && pip3 check && echo 'SANIC_NO_LOGO=true pytest -v tests --full-trace --timeout=240' > test_commands.sh && bash test_commands.sh
+###ACTION_DELIMITER###
+apt-get update && apt-get install -y libuv1-dev gcc && pip3 check && echo 'SANIC_NO_LOGO=true pytest -v tests --full-trace --timeout=240' > test_commands.sh && bash test_commands.sh
+###ACTION_DELIMITER###
+echo 'pytest -v tests --cov sanic --full-trace --forked --timeout=240' > test_commands.sh && bash test_commands.sh
+###ACTION_DELIMITER###
+pip3 install -r <(grep -A 20 'deps =' tox.ini | grep -v 'deps =' | grep -v '^$' | sed 's/^[ 	]*//') && echo 'pytest -v tests --cov sanic --timeout=300' > test_commands.sh && bash test_commands.sh
+###ACTION_DELIMITER###
+awk '/\[testenv\]/{flag=1} flag && /deps =/{flag=2; next} flag==2 && /^[^ 	]/{flag=0} flag==2' tox.ini | sed 's/^[ 	]*//' > requirements.txt && pip3 install -r requirements.txt && echo 'pytest -v tests --cov sanic --timeout=300' > test_commands.sh && bash test_commands.sh"""
             ),
             File(
                 ".",
                 "run.sh",
                 """#!/bin/bash
 cd /home/{pr.repo}
-./test_reframe.py -v
+pytest -v tests --cov sanic --timeout=300
 
 """.format(
                     pr=self.pr
@@ -83,7 +139,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn /home/test.patch; then
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-./test_reframe.py -v
+pytest -v tests --cov sanic --timeout=300
 
 """.format(
                     pr=self.pr
@@ -98,7 +154,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn  /home/test.patch /home/fi
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-./test_reframe.py -v
+pytest -v tests --cov sanic --timeout=300
 
 """.format(
                     pr=self.pr
@@ -134,9 +190,9 @@ RUN if [ ! -f /bin/bash ]; then         if command -v apk >/dev/null 2>&1; then 
 WORKDIR /home/
 COPY fix.patch /home/
 COPY test.patch /home/
-RUN git clone https://github.com/reframe-hpc/reframe.git /home/reframe
+RUN git clone https://github.com/sanic-org/sanic.git /home/sanic
 
-WORKDIR /home/reframe
+WORKDIR /home/sanic
 RUN git reset --hard
 RUN git checkout {pr.base.sha}
 """
@@ -146,8 +202,8 @@ RUN git checkout {pr.base.sha}
         return dockerfile_content.format(pr=self.pr)
 
 
-@Instance.register("reframe-hpc", "reframe_3110_to_1612")
-class REFRAME_3110_TO_1612(Instance):
+@Instance.register("sanic-org", "sanic_2001_to_1857")
+class SANIC_2001_TO_1857(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
         self._pr = pr
@@ -185,28 +241,22 @@ class REFRAME_3110_TO_1612(Instance):
         failed_tests = set()  # Tests that failed
         skipped_tests = set()  # Tests that were skipped
         import re
-        # Regex patterns to match test lines
-        pattern1 = re.compile(r'^(.+?)\s+(PASSED|SKIPPED|FAILED)\b')  # test name followed by status
-        pattern2 = re.compile(r'^(PASSED|SKIPPED|FAILED)\s+(.+?)\b')  # status followed by test name
-        for line in log.splitlines():
-            line = line.strip()
-            match1 = pattern1.match(line)
-            match2 = pattern2.match(line)
-            if match1:
-                test_name = match1.group(1).strip()
-                status = match1.group(2)
-            elif match2:
-                status = match2.group(1)
-                test_name = match2.group(2).strip()
-            else:
-                continue
-            # Add to the appropriate set
-            if status == 'PASSED':
-                passed_tests.add(test_name)
-            elif status == 'FAILED':
-                failed_tests.add(test_name)
-            elif status == 'SKIPPED':
-                skipped_tests.add(test_name)
+        # import json  # Not needed for this parsing
+        # Regex pattern to match test lines with their status
+        pattern = re.compile(r'^(tests/.*?::.*?)\s+(PASSED|FAILED|SKIPPED)\b')
+        # Split log content into lines and process each line
+        for line in log.split('\n'):
+            stripped_line = line.strip()
+            match = pattern.match(stripped_line)
+            if match:
+                test_name = match.group(1)
+                status = match.group(2)
+                if status == 'PASSED':
+                    passed_tests.add(test_name)
+                elif status == 'FAILED':
+                    failed_tests.add(test_name)
+                elif status == 'SKIPPED':
+                    skipped_tests.add(test_name)
         parsed_results = {
             "passed_tests": passed_tests,
             "failed_tests": failed_tests,

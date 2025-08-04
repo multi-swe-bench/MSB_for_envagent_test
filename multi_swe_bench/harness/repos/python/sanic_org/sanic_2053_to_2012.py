@@ -21,7 +21,7 @@ class ImageDefault(Image):
         return self._config
 
     def dependency(self) -> str:
-        return "python:3.9-slim"
+        return "ubuntu:latest"
     
     def image_prefix(self) -> str:
         return "envagent"
@@ -47,25 +47,100 @@ class ImageDefault(Image):
             File(
                 ".",
                 "prepare.sh",
-                """ls -l
+                """ls
 ###ACTION_DELIMITER###
-pip install -r requirements.txt
+apt-get update
 ###ACTION_DELIMITER###
-echo "./test_reframe.py -v" > test_commands.sh
+apt-get install -y python3 python3-pip
 ###ACTION_DELIMITER###
-cat test_commands.sh
+pip3 install -e .
 ###ACTION_DELIMITER###
-./reframe.py --help
+python3 -m venv venv && venv/bin/pip install -e .
 ###ACTION_DELIMITER###
-echo -e "./test_reframe.py -v\n./reframe.py -r -t tutorial -t production --exec-policy=serial --save-log-files" > test_commands.sh"""
+apt-get install -y python3.12-venv
+###ACTION_DELIMITER###
+python3 -m venv venv && venv/bin/pip install -e .
+###ACTION_DELIMITER###
+echo 'venv/bin/pytest -v tests --cov sanic' > /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+cat /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+venv/bin/pip install pytest pytest-cov pytest-sanic pytest-sugar pytest-benchmark
+###ACTION_DELIMITER###
+venv/bin/pip install websockets==8.1
+###ACTION_DELIMITER###
+venv/bin/pip install pytest-sanic==1.6.0
+###ACTION_DELIMITER###
+venv/bin/pip install sanic-testing coverage==5.3 pytest==5.2.1 pytest-cov pytest-sanic pytest-sugar pytest-benchmark chardet==3.* beautifulsoup4 gunicorn==20.0.4 uvicorn websockets>=8.1,<9.0
+###ACTION_DELIMITER###
+venv/bin/pip install sanic-testing coverage==5.3 pytest==5.2.1 pytest-cov pytest-sanic pytest-sugar pytest-benchmark chardet==3.* beautifulsoup4 gunicorn==20.0.4 uvicorn 'websockets>=8.1,<9.0'
+###ACTION_DELIMITER###
+bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+venv/bin/pip install pytest==7.2.0
+###ACTION_DELIMITER###
+apt-get update && apt-get install -y python3.9 python3.9-venv
+###ACTION_DELIMITER###
+add-apt-repository ppa:deadsnakes/ppa -y && apt-get update && apt-get install -y python3.9 python3.9-venv
+###ACTION_DELIMITER###
+apt-get install -y software-properties-common
+###ACTION_DELIMITER###
+add-apt-repository ppa:deadsnakes/ppa -y && apt-get update && apt-get install -y python3.9 python3.9-venv
+###ACTION_DELIMITER###
+python3.9 -m venv venv39
+###ACTION_DELIMITER###
+venv39/bin/pip install -e .
+###ACTION_DELIMITER###
+venv39/bin/pip install sanic-testing coverage==5.3 pytest==5.2.1 pytest-cov pytest-sanic pytest-sugar pytest-benchmark chardet==3.* beautifulsoup4 gunicorn==20.0.4 uvicorn 'websockets>=8.1,<9.0'
+###ACTION_DELIMITER###
+echo 'venv39/bin/pytest -v tests --cov sanic' > /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+cat /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+venv39/bin/pip install pytest-benchmark==3.2.3
+###ACTION_DELIMITER###
+venv39/bin/pip install --force-reinstall pytest==5.2.1
+###ACTION_DELIMITER###
+venv39/bin/pip install --upgrade pip && venv39/bin/pip install -r <(grep -v '^#' tox.ini | grep -E 'pytest|coverage|sanic-testing|chardet|beautifulsoup4|gunicorn|uvicorn|websockets' | tr -s ' ' | cut -d' ' -f2- | sed 's/==/=/g')
+###ACTION_DELIMITER###
+venv39/bin/pip install --upgrade pip && venv39/bin/pip install -r <(grep -v '^#' tox.ini | grep -E 'sanic-testing|coverage|pytest|chardet|beautifulsoup4|gunicorn|uvicorn|websockets' | tr -s ' ' | cut -d' ' -f2-)
+###ACTION_DELIMITER###
+
+###ACTION_DELIMITER###
+venv39/bin/pip install sanic-testing coverage==5.3 pytest==5.2.1 pytest-cov pytest-sanic pytest-sugar pytest-benchmark==3.2.3 chardet==3.* beautifulsoup4 gunicorn==20.0.4 uvicorn 'websockets>=8.1,<9.0'
+###ACTION_DELIMITER###
+bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+venv39/bin/pip install sanic-testing==0.8.0
+###ACTION_DELIMITER###
+bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+venv39/bin/pip install sanic-testing==0.5.0
+###ACTION_DELIMITER###
+venv39/bin/pip install sanic-testing==0.4.0
+###ACTION_DELIMITER###
+venv39/bin/pip install sanic-testing==0.1.0
+###ACTION_DELIMITER###
+venv39/bin/pip install sanic-testing==0.7.0
+###ACTION_DELIMITER###
+venv39/bin/pip install sanic-testing==0.6.0
+###ACTION_DELIMITER###
+venv39/bin/pip install sanic-testing==0.4.0 websockets==8.1
+###ACTION_DELIMITER###
+bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+"""
             ),
             File(
                 ".",
                 "run.sh",
                 """#!/bin/bash
 cd /home/{pr.repo}
-./test_reframe.py -v
-./reframe.py -r -t tutorial -t production --exec-policy=serial --save-log-files
+venv39/bin/pytest -v tests --cov sanic
 
 """.format(
                     pr=self.pr
@@ -80,8 +155,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn /home/test.patch; then
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-./test_reframe.py -v
-./reframe.py -r -t tutorial -t production --exec-policy=serial --save-log-files
+venv39/bin/pytest -v tests --cov sanic
 
 """.format(
                     pr=self.pr
@@ -96,8 +170,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn  /home/test.patch /home/fi
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-./test_reframe.py -v
-./reframe.py -r -t tutorial -t production --exec-policy=serial --save-log-files
+venv39/bin/pytest -v tests --cov sanic
 
 """.format(
                     pr=self.pr
@@ -114,9 +187,9 @@ fi
 # This is a template for creating a Dockerfile to test patches
 # LLM should fill in the appropriate values based on the context
 
-# Choose an appropriate base image based on the project's requirements - replace [base image] with actual base image
+# Choose an appropriate base image based on the project's requirements - replace ubuntu:latest with actual base image
 # For example: FROM ubuntu:**, FROM python:**, FROM node:**, FROM centos:**, etc.
-FROM python:3.9-slim
+FROM ubuntu:latest
 
 ## Set noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -133,9 +206,9 @@ RUN if [ ! -f /bin/bash ]; then         if command -v apk >/dev/null 2>&1; then 
 WORKDIR /home/
 COPY fix.patch /home/
 COPY test.patch /home/
-RUN git clone https://github.com/reframe-hpc/reframe.git /home/reframe
+RUN git clone https://github.com/sanic-org/sanic.git /home/sanic
 
-WORKDIR /home/reframe
+WORKDIR /home/sanic
 RUN git reset --hard
 RUN git checkout {pr.base.sha}
 """
@@ -145,8 +218,8 @@ RUN git checkout {pr.base.sha}
         return dockerfile_content.format(pr=self.pr)
 
 
-@Instance.register("reframe-hpc", "reframe_275_to_90")
-class REFRAME_275_TO_90(Instance):
+@Instance.register("sanic-org", "sanic_2053_to_2012")
+class SANIC_2053_TO_2012(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
         self._pr = pr
@@ -180,34 +253,24 @@ class REFRAME_275_TO_90(Instance):
 
     def parse_log(self, log: str) -> TestResult:
         # Parse the log content and extract test execution results.
-        passed_tests = set()  # Tests that passed successfully
-        failed_tests = set()  # Tests that failed
-        skipped_tests = set()  # Tests that were skipped
+        passed_tests = set[str]()  # Tests that passed successfully
+        failed_tests = set[str]()  # Tests that failed
+        skipped_tests = set[str]()  # Tests that were skipped
         import re
-        # Regular expressions to match test lines
-        pattern1 = re.compile(r'^\[\s*\d+\]\s*(.*?)\s*\.\.\.\s*(.*)$')  # Match ... as separator
-        pattern2 = re.compile(r'^(FAIL|ERROR):\s*(.*?)\s*$', re.MULTILINE)  # Capture status and full test name from summaries (no [number] prefix)
+        import json
+        # Regex pattern to match test lines with status
+        pattern = re.compile(r'(tests/[^:]+::[^\s]+)\s+(PASSED|FAILED|SKIPPED)')
         for line in log.splitlines():
-            line = line.strip()
-            if re.search(r'\.{3}|\u2026', line):
-                # Split test name and status using ... or … as separator
-                test_part, status_part = re.split(r'\s*\.\.\.\s*', line, 1)
-                # Extract test name by removing the line number bracket
-                test_name = test_part.split(']')[-1].strip()
-                status = status_part.strip()
-                status_lower = status.lower()
-                if status_lower.startswith(('ok', 'passed', 'success')):
+            match = pattern.search(line)
+            if match:
+                test_name = match.group(1)
+                status = match.group(2)
+                if status == 'PASSED':
                     passed_tests.add(test_name)
-                elif status_lower in ('error', 'fail') or status_lower.startswith(('error', 'fail', 'failed')):
+                elif status == 'FAILED':
                     failed_tests.add(test_name)
-                elif status_lower.startswith(('skip', 'skipped')):
+                elif status == 'SKIPPED':
                     skipped_tests.add(test_name)
-            else:
-                # Check for failure summary lines (e.g., FAIL: test_name)
-                failure_match = pattern2.match(line)
-                if failure_match:
-                    test_name = failure_match.group(2).strip()
-                    failed_tests.add(test_name)
         parsed_results = {
             "passed_tests": passed_tests,
             "failed_tests": failed_tests,

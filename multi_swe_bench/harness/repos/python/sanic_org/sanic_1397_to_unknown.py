@@ -21,7 +21,7 @@ class ImageDefault(Image):
         return self._config
 
     def dependency(self) -> str:
-        return "python:3.9-slim"
+        return "ubuntu:latest"
     
     def image_prefix(self) -> str:
         return "envagent"
@@ -47,26 +47,56 @@ class ImageDefault(Image):
             File(
                 ".",
                 "prepare.sh",
-                """ls -la
+                """python3 --version
 ###ACTION_DELIMITER###
-./bootstrap.sh
+apt-get update && apt-get install -y python3 python3-pip python3-dev
 ###ACTION_DELIMITER###
-sed -i 's/--use-feature=2020-resolver //g' bootstrap.sh
+python3 --version
 ###ACTION_DELIMITER###
-./bootstrap.sh
+apt-get install -y software-properties-common && add-apt-repository ppa:deadsnakes/ppa -y
 ###ACTION_DELIMITER###
-./test_reframe.py -v
+apt-get update
 ###ACTION_DELIMITER###
-echo "./test_reframe.py -v" > test_commands.sh
+apt-get install -y python3.7 python3.7-pip python3.7-dev
 ###ACTION_DELIMITER###
-bash test_commands.sh"""
+apt-get install -y python3.7 python3.7-dev && curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python3.7 get-pip.py
+###ACTION_DELIMITER###
+apt-get update && apt-get install -y curl && curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python3.7 get-pip.py
+###ACTION_DELIMITER###
+curl https://bootstrap.pypa.io/pip/3.7/get-pip.py -o get-pip.py && python3.7 get-pip.py
+###ACTION_DELIMITER###
+apt-get install -y python3.7-distutils && curl https://bootstrap.pypa.io/pip/3.7/get-pip.py -o get-pip.py && python3.7 get-pip.py
+###ACTION_DELIMITER###
+curl https://bootstrap.pypa.io/pip/3.7/get-pip.py -o get-pip.py && python3.7 get-pip.py --ignore-installed
+###ACTION_DELIMITER###
+pip3.7 install -r requirements-dev.txt
+###ACTION_DELIMITER###
+echo 'python3.7 -m pytest -v --no-header -rA --tb=no -p no:cacheprovider tests/' > test_commands.sh
+###ACTION_DELIMITER###
+cat test_commands.sh
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+pip3.7 install attrs==19.3.0 --force-reinstall
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+pip3.7 install attrs==17.4.0 && pip3.7 install pytest==3.3.2 --force-reinstall
+###ACTION_DELIMITER###
+pip3.7 install pytest==3.3.2 attrs==19.3.0 --force-reinstall
+###ACTION_DELIMITER###
+pip3.7 install attrs==18.2.0 --force-reinstall && bash test_commands.sh
+###ACTION_DELIMITER###
+pip3.7 install websockets && bash test_commands.sh
+###ACTION_DELIMITER###
+sed -i 's/ --no-header//' test_commands.sh && bash test_commands.sh"""
             ),
             File(
                 ".",
                 "run.sh",
                 """#!/bin/bash
 cd /home/{pr.repo}
-./test_reframe.py -v
+python3.7 -m pytest -v -rA --tb=no -p no:cacheprovider tests/
 
 """.format(
                     pr=self.pr
@@ -81,7 +111,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn /home/test.patch; then
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-./test_reframe.py -v
+python3.7 -m pytest -v -rA --tb=no -p no:cacheprovider tests/
 
 """.format(
                     pr=self.pr
@@ -96,7 +126,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn  /home/test.patch /home/fi
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-./test_reframe.py -v
+python3.7 -m pytest -v -rA --tb=no -p no:cacheprovider tests/
 
 """.format(
                     pr=self.pr
@@ -113,9 +143,9 @@ fi
 # This is a template for creating a Dockerfile to test patches
 # LLM should fill in the appropriate values based on the context
 
-# Choose an appropriate base image based on the project's requirements - replace [base image] with actual base image
+# Choose an appropriate base image based on the project's requirements - replace ubuntu:latest with actual base image
 # For example: FROM ubuntu:**, FROM python:**, FROM node:**, FROM centos:**, etc.
-FROM python:3.9-slim
+FROM ubuntu:latest
 
 ## Set noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -132,9 +162,9 @@ RUN if [ ! -f /bin/bash ]; then         if command -v apk >/dev/null 2>&1; then 
 WORKDIR /home/
 COPY fix.patch /home/
 COPY test.patch /home/
-RUN git clone https://github.com/reframe-hpc/reframe.git /home/reframe
+RUN git clone https://github.com/sanic-org/sanic.git /home/sanic
 
-WORKDIR /home/reframe
+WORKDIR /home/sanic
 RUN git reset --hard
 RUN git checkout {pr.base.sha}
 """
@@ -144,8 +174,8 @@ RUN git checkout {pr.base.sha}
         return dockerfile_content.format(pr=self.pr)
 
 
-@Instance.register("reframe-hpc", "reframe_1612_to_1462")
-class REFRAME_1612_TO_1462(Instance):
+@Instance.register("sanic-org", "sanic_1397_to_unknown")
+class SANIC_1397_TO_UNKNOWN(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
         self._pr = pr
@@ -183,24 +213,15 @@ class REFRAME_1612_TO_1462(Instance):
         failed_tests = set()  # Tests that failed
         skipped_tests = set()  # Tests that were skipped
         import re
-        # Implement the log parsing logic here
-        # Pattern for passed tests: test name (no spaces) followed by PASSED
-        passed_pattern = re.compile(r'([^\s]+)\s+PASSED\b')
-        passed_tests = {test for test in passed_pattern.findall(log) if '::' in test}
-        # Pattern for failed tests: test name (no spaces) followed by FAILED or FAILED followed by test name
-        failed_pattern = re.compile(r'([^\s]+)\s+FAILED\b|FAILED\s+([^\s]+)\b')
-        failed_tests = set()
-        for match in failed_pattern.findall(log):
-            test = match[0] if match[0] else match[1]
-            if test and '::' in test:
-                failed_tests.add(test)
-        # Pattern for skipped tests: test name (no spaces) followed by SKIPPED or SKIPPED followed by test name
-        skipped_pattern = re.compile(r'([^\s]+)\s+SKIPPED\b|SKIPPED\s+([^\s]+)\b')
-        skipped_tests = set()
-        for match in skipped_pattern.findall(log):
-            test = match[0] if match[0] else match[1]
-            if test and '::' in test:
-                skipped_tests.add(test)
+        pattern = re.compile(r"(tests/.*?)\s+(PASSED|FAILED|SKIPPED)", re.MULTILINE)
+        matches = pattern.findall(log)
+        for test_name, status in matches:
+            if status == "PASSED":
+                passed_tests.add(test_name)
+            elif status == "FAILED":
+                failed_tests.add(test_name)
+            elif status == "SKIPPED":
+                skipped_tests.add(test_name)
         parsed_results = {
             "passed_tests": passed_tests,
             "failed_tests": failed_tests,

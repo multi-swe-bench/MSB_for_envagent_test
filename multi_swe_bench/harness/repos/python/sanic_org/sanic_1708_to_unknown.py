@@ -49,48 +49,100 @@ class ImageDefault(Image):
                 "prepare.sh",
                 """ls
 ###ACTION_DELIMITER###
-cat requirements.txt
+apt-get update && apt-get install -y build-essential python3-dev libuv1-dev
 ###ACTION_DELIMITER###
-apt-get update && apt-get install -y python3 python3-pip
+apt-get install -y software-properties-common && add-apt-repository ppa:deadsnakes/ppa -y && apt-get update
 ###ACTION_DELIMITER###
-pip3 install -r requirements.txt
+apt-get install -y python3.8 python3.8-dev python3.8-venv
 ###ACTION_DELIMITER###
-python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
+python3.8 -m venv venv
 ###ACTION_DELIMITER###
-apt-get install -y python3.12-venv
+source venv/bin/activate
 ###ACTION_DELIMITER###
-python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
+pip install --upgrade pip
 ###ACTION_DELIMITER###
-cat Jenkinsfile
+pip install -e .
 ###ACTION_DELIMITER###
-cat ci-scripts/ci-runner.bash
+sed -i 's/requests-async==0.5.0/requests-async==0.2.2/' setup.py
 ###ACTION_DELIMITER###
-cat << EOF > test_commands.sh
-#!/bin/bash
-./test_reframe.py --rfm-user-config=config/cscs-ci.py -v
-./bin/reframe -C config/cscs.py --save-log-files -r -v --flex-alloc-nodes=2 -t production,benchmark
-EOF && chmod +x test_commands.sh
+pip install -e .
 ###ACTION_DELIMITER###
-echo '#!/bin/bash' > test_commands.sh && echo './test_reframe.py --rfm-user-config=config/cscs-ci.py -v' >> test_commands.sh && echo './bin/reframe -C config/cscs.py --save-log-files -r -v --flex-alloc-nodes=2 -t production,benchmark' >> test_commands.sh && chmod +x test_commands.sh
+pip install pytest==5.2.1 multidict>=4.0,<5.0 gunicorn pytest-cov httpcore==0.3.0 beautifulsoup4 uvloop ujson pytest-sanic pytest-sugar pytest-benchmark
 ###ACTION_DELIMITER###
-cat test_commands.sh
+pip install pytest==5.2.1 'multidict>=4.0,<5.0' gunicorn pytest-cov httpcore==0.3.0 beautifulsoup4 uvloop ujson pytest-sanic pytest-sugar pytest-benchmark
 ###ACTION_DELIMITER###
-echo -e '#!/bin/bash
- source ./venv/bin/activate
- ./test_reframe.py --rfm-user-config=config/cscs-ci.py -v
- ./bin/reframe -C config/cscs.py --save-log-files -r -v --flex-alloc-nodes=2 -t production,benchmark' > test_commands.sh && chmod +x test_commands.sh
+pip install websockets==8.1
 ###ACTION_DELIMITER###
-cat test_commands.sh"""
+pip install pytest-sanic==1.7.0
+###ACTION_DELIMITER###
+echo 'pytest -v --no-header -rA --tb=no -p no:cacheprovider tests' > test_commands.sh
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+pip install pytest-benchmark==3.2.3
+###ACTION_DELIMITER###
+pip install --force-reinstall pytest==5.2.1
+###ACTION_DELIMITER###
+pytest
+###ACTION_DELIMITER###
+pip install httpx==0.13.3
+###ACTION_DELIMITER###
+pip install httpx==0.23.0
+###ACTION_DELIMITER###
+pip install httpx==0.24.0
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+grep -r 'ASGISession' venv/lib/python3.8/site-packages/requests_async/
+###ACTION_DELIMITER###
+pip install requests-async==0.6.0
+###ACTION_DELIMITER###
+pip install git+https://github.com/encode/requests-async.git
+###ACTION_DELIMITER###
+sed -i 's/requests-async==0.5.0/requests-async>=0.6.2/' setup.py
+###ACTION_DELIMITER###
+pip install -e .
+###ACTION_DELIMITER###
+sed -i 's/requests-async==0.2.2/requests-async>=0.6.2/' setup.py
+###ACTION_DELIMITER###
+pip install -e .
+###ACTION_DELIMITER###
+pip install git+https://github.com/encode/requests-async.git && pip install -e .
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+sed -i 's/ --no-header//' test_commands.sh
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+pip install pytest-asyncio==0.14.0
+###ACTION_DELIMITER###
+pip install pytest-asyncio==0.23.2
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+sed -i 's/def protocol(transport, loop):/def protocol(transport):/' tests/test_asgi.py
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+sed -i '/^import uvicorn/a @pytest.fixture\ndef app():\n    return Sanic("test_app")' tests/test_asgi.py
+###ACTION_DELIMITER###
+pip install uvicorn==0.11.8
+###ACTION_DELIMITER###
+pip install pytest==5.2.1 pytest-asyncio==0.14.0
+###ACTION_DELIMITER###
+pip install pytest==5.2.1 pytest-asyncio==0.10.0
+###ACTION_DELIMITER###
+bash test_commands.sh
+###ACTION_DELIMITER###
+sed -i 's/--tb=no//' test_commands.sh"""
             ),
             File(
                 ".",
                 "run.sh",
                 """#!/bin/bash
 cd /home/{pr.repo}
-#!/bin/bash
- source ./venv/bin/activate
- ./test_reframe.py --rfm-user-config=config/cscs-ci.py -v
- ./bin/reframe -C config/cscs.py --save-log-files -r -v --flex-alloc-nodes=2 -t production,benchmark
+pytest -v -rA  -p no:cacheprovider tests
 
 """.format(
                     pr=self.pr
@@ -105,10 +157,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn /home/test.patch; then
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-#!/bin/bash
- source ./venv/bin/activate
- ./test_reframe.py --rfm-user-config=config/cscs-ci.py -v
- ./bin/reframe -C config/cscs.py --save-log-files -r -v --flex-alloc-nodes=2 -t production,benchmark
+pytest -v -rA  -p no:cacheprovider tests
 
 """.format(
                     pr=self.pr
@@ -123,10 +172,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn  /home/test.patch /home/fi
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-#!/bin/bash
- source ./venv/bin/activate
- ./test_reframe.py --rfm-user-config=config/cscs-ci.py -v
- ./bin/reframe -C config/cscs.py --save-log-files -r -v --flex-alloc-nodes=2 -t production,benchmark
+pytest -v -rA  -p no:cacheprovider tests
 
 """.format(
                     pr=self.pr
@@ -162,9 +208,9 @@ RUN if [ ! -f /bin/bash ]; then         if command -v apk >/dev/null 2>&1; then 
 WORKDIR /home/
 COPY fix.patch /home/
 COPY test.patch /home/
-RUN git clone https://github.com/reframe-hpc/reframe.git /home/reframe
+RUN git clone https://github.com/sanic-org/sanic.git /home/sanic
 
-WORKDIR /home/reframe
+WORKDIR /home/sanic
 RUN git reset --hard
 RUN git checkout {pr.base.sha}
 """
@@ -174,8 +220,8 @@ RUN git checkout {pr.base.sha}
         return dockerfile_content.format(pr=self.pr)
 
 
-@Instance.register("reframe-hpc", "reframe_1223_to_835")
-class REFRAME_1223_TO_835(Instance):
+@Instance.register("sanic-org", "sanic_1708_to_unknown")
+class SANIC_1708_TO_UNKNOWN(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
         self._pr = pr
@@ -209,22 +255,28 @@ class REFRAME_1223_TO_835(Instance):
 
     def parse_log(self, log: str) -> TestResult:
         # Parse the log content and extract test execution results.
-        passed_tests = set() # Tests that passed successfully
-        failed_tests = set() # Tests that failed
-        skipped_tests = set() # Tests that were skipped
+        passed_tests: set[str] = set()  # Tests that passed successfully
+        failed_tests: set[str] = set()  # Tests that failed
+        skipped_tests: set[str] = set()  # Tests that were skipped
         import re
-        import json
-        # Strip ANSI escape codes
-        log = re.sub(r'\x1b\[[0-9;]*m', '', log)
-        # Parse all test statuses with a single regex
-        test_pattern = re.compile(r'(?:\[\s*\d+\]\s+)?([\w\/\.:-]+)\s+(PASSED|FAILED|SKIPPED)(?:\s+\[\s*\d+%\s*\])?', re.MULTILINE)
-        for test_name, status in test_pattern.findall(log):
-            if status == 'PASSED':
+        # Pattern for test lines with status and progress
+        test_pattern = re.compile(r"^(tests/.*?) (PASSED|FAILED|SKIPPED)\s+\[\s*\d+%\]", re.MULTILINE)
+        # Pattern for failed tests listed at the end
+        failed_pattern = re.compile(r"^FAILED (tests/.*?) -", re.MULTILINE)
+        # Extract tests from main test lines
+        for match in test_pattern.finditer(log):
+            test_name = match.group(1)
+            status = match.group(2)
+            if status == "PASSED":
                 passed_tests.add(test_name)
-            elif status == 'FAILED':
+            elif status == "FAILED":
                 failed_tests.add(test_name)
-            elif status == 'SKIPPED':
+            elif status == "SKIPPED":
                 skipped_tests.add(test_name)
+        # Extract failed tests from the end section
+        for match in failed_pattern.finditer(log):
+            test_name = match.group(1)
+            failed_tests.add(test_name)
         parsed_results = {
             "passed_tests": passed_tests,
             "failed_tests": failed_tests,

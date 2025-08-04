@@ -21,7 +21,7 @@ class ImageDefault(Image):
         return self._config
 
     def dependency(self) -> str:
-        return "python:3.9-slim"
+        return "python:3.11-slim"
     
     def image_prefix(self) -> str:
         return "envagent"
@@ -47,24 +47,68 @@ class ImageDefault(Image):
             File(
                 ".",
                 "prepare.sh",
-                """ls
+                """pip install pytest==5.2.1 pytest-cov pytest-sanic pytest-sugar gunicorn beautifulsoup4 httpcore==0.3.0 multidict>=4.0,<5.0 uvloop ujson
 ###ACTION_DELIMITER###
-./bootstrap.sh
+pip3 install pytest==5.2.1 pytest-cov pytest-sanic pytest-sugar gunicorn beautifulsoup4 httpcore==0.3.0 'multidict>=4.0,<5.0' uvloop ujson
 ###ACTION_DELIMITER###
 apt-get update && apt-get install -y build-essential
 ###ACTION_DELIMITER###
-./test_reframe.py -v
+pip3 install pytest==5.2.1 pytest-cov pytest-sanic pytest-sugar gunicorn beautifulsoup4 httpcore==0.3.0 'multidict>=4.0,<5.0' uvloop ujson
 ###ACTION_DELIMITER###
-echo './test_reframe.py -v' > test_commands.sh
+pip3 install -e .
 ###ACTION_DELIMITER###
-bash test_commands.sh"""
+pip3 install pytest-sanic==1.6.0
+###ACTION_DELIMITER###
+echo 'python setup.py test --pytest-args="-v"' > /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+cat /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+echo 'pytest -v tests' > /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+pip3 install pytest==5.4.3
+###ACTION_DELIMITER###
+bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+pip3 install pytest==5.9.6
+###ACTION_DELIMITER###
+pip3 install pytest==7.0.0 pytest-sanic==1.9.1 httpx>=0.18.1 websockets>=9.1
+###ACTION_DELIMITER###
+pip3 uninstall -y pytest pytest-sanic httpx websockets && python setup.py test --pytest-args="-v"
+###ACTION_DELIMITER###
+pip3 install pytest==7.0.0 pytest-sanic==1.9.1 httpx>=0.18.1 websockets>=9.1 --force-reinstall
+###ACTION_DELIMITER###
+pip3 uninstall -y pytest pytest-sanic httpx websockets && pip3 install pytest==5.4.3 pytest-sanic==1.6.0 httpx==0.9.3 websockets==8.1 && echo 'pytest -v --assert=plain tests' > /home/sanic/test_commands.sh && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+pip3 uninstall -y pytest-cov && pip3 install pytest-cov==2.12.1 && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+pip3 install pytest-asyncio==0.14.0 asgiref && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+pip3 install uvicorn && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+pip3 install sanic-testing && echo 'pytest -v --asyncio-mode=auto tests' > /home/sanic/test_commands.sh && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+echo 'pytest -v --assert=plain tests' > /home/sanic/test_commands.sh && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+pip3 uninstall -y sanic-testing httpx && pip3 install httpx==0.9.3 && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+pip3 install httpcore==0.3.0 && echo 'pytest -v --assert=plain --asyncio-mode=auto tests' > /home/sanic/test_commands.sh && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+echo 'pytest -v --assert=plain tests' > /home/sanic/test_commands.sh && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+echo 'SANIC_LOOP=asyncio pytest -v --assert=plain tests' > /home/sanic/test_commands.sh && bash /home/sanic/test_commands.sh
+###ACTION_DELIMITER###
+pip3 uninstall -y uvloop && echo 'SANIC_LOOP=asyncio pytest -v --assert=plain tests' > /home/sanic/test_commands.sh && bash /home/sanic/test_commands.sh"""
             ),
             File(
                 ".",
                 "run.sh",
                 """#!/bin/bash
 cd /home/{pr.repo}
-./test_reframe.py -v
+SANIC_LOOP=asyncio pytest -v --assert=plain tests
 
 """.format(
                     pr=self.pr
@@ -79,7 +123,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn /home/test.patch; then
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-./test_reframe.py -v
+SANIC_LOOP=asyncio pytest -v --assert=plain tests
 
 """.format(
                     pr=self.pr
@@ -94,7 +138,7 @@ if ! git -C /home/{pr.repo} apply --whitespace=nowarn  /home/test.patch /home/fi
     echo "Error: git apply failed" >&2
     exit 1  
 fi
-./test_reframe.py -v
+SANIC_LOOP=asyncio pytest -v --assert=plain tests
 
 """.format(
                     pr=self.pr
@@ -111,9 +155,9 @@ fi
 # This is a template for creating a Dockerfile to test patches
 # LLM should fill in the appropriate values based on the context
 
-# Choose an appropriate base image based on the project's requirements - replace [base image] with actual base image
+# Choose an appropriate base image based on the project's requirements - replace python:3.11-slim with actual base image
 # For example: FROM ubuntu:**, FROM python:**, FROM node:**, FROM centos:**, etc.
-FROM python:3.9-slim
+FROM python:3.11-slim
 
 ## Set noninteractive
 ENV DEBIAN_FRONTEND=noninteractive
@@ -130,9 +174,9 @@ RUN if [ ! -f /bin/bash ]; then         if command -v apk >/dev/null 2>&1; then 
 WORKDIR /home/
 COPY fix.patch /home/
 COPY test.patch /home/
-RUN git clone https://github.com/reframe-hpc/reframe.git /home/reframe
+RUN git clone https://github.com/sanic-org/sanic.git /home/sanic
 
-WORKDIR /home/reframe
+WORKDIR /home/sanic
 RUN git reset --hard
 RUN git checkout {pr.base.sha}
 """
@@ -142,8 +186,8 @@ RUN git checkout {pr.base.sha}
         return dockerfile_content.format(pr=self.pr)
 
 
-@Instance.register("reframe-hpc", "reframe_3500_to_3287")
-class REFRAME_3500_TO_3287(Instance):
+@Instance.register("sanic-org", "sanic_1764_to_unknown")
+class SANIC_1764_TO_UNKNOWN(Instance):
     def __init__(self, pr: PullRequest, config: Config, *args, **kwargs):
         super().__init__()
         self._pr = pr
@@ -177,56 +221,28 @@ class REFRAME_3500_TO_3287(Instance):
 
     def parse_log(self, log: str) -> TestResult:
         # Parse the log content and extract test execution results.
-        passed_tests: set[str] = set()  # Tests that passed successfully
-        failed_tests: set[str] = set()  # Tests that failed
-        skipped_tests: set[str] = set()  # Tests that were skipped
+        passed_tests = set[str]()  # Tests that passed successfully
+        failed_tests = set[str]()  # Tests that failed
+        skipped_tests = set[str]()  # Tests that were skipped
         import re
-        # Regex patterns to match different test result lines
-        # Pattern 1: Execution lines with line number, test name, status, and percentage
-        execution_pattern = re.compile(
-            r'^(.*?)\s+(PASSED|SKIPPED|FAILED)\s+.*?\[\s*\d+%\s*\]$'
-        )
-        # Pattern 2: Summary lines with line number, status, and test name
-        summary_pattern = re.compile(
-            r'^\[\s*\d+\s*\]\s+(PASSED|SKIPPED|FAILED)\s+(.+?)(?:\s+-.*)?$'
-        )
-        # Pattern 3: Color-coded lines with line number, status in brackets, (x/y), and test name
-        color_pattern = re.compile(
-            r'^\[\s*\d+\s*\]\s+\[.*?\s+(FAIL|PASSED|SKIPPED)\s+.*?\]\s+\(\d+/\d+\)\s+(.*)'
-        )
-        for line in log.splitlines():
-            line = line.strip()
-            test_name = None
-            status = None
-            # Check color pattern first
-            color_match = color_pattern.match(line)
-            if color_match:
-                status = color_match.group(1)
-                test_name = color_match.group(2).strip()
+        # Define regex pattern to match test names and their statuses
+        pattern = re.compile(r'^.*?(tests/[^:]+::[^ ]+)\s+(PASSED|FAILED|ERROR|SKIPPED)\s+\[\s*\d+%\]|^.*?(PASSED|FAILED|ERROR|SKIPPED)\s+(tests/[^:]+::[^ ]+)\s+-', re.MULTILINE)
+        # Find all matches in the log content
+        matches = pattern.findall(log)
+        # Categorize each test based on its status
+        for match in matches:
+            # Extract test name and status from either pattern
+            if match[0] and match[1]:
+                test_name, status = match[0], match[1]
             else:
-                # Check execution pattern
-                exec_match = execution_pattern.match(line)
-                if exec_match:
-                    test_name = exec_match.group(1).strip()
-                    status = exec_match.group(2)
-                else:
-                    # Check summary pattern
-                    sum_match = summary_pattern.match(line)
-                    if sum_match:
-                        status = sum_match.group(1)
-                        test_name = sum_match.group(2).strip()
-                    else:
-                        continue  # No match, skip the line
-            # Normalize status (e.g., 'FAIL' -> 'FAILED')
-            if status == 'FAIL':
-                status = 'FAILED'
-            # Add to the appropriate set
+                status, test_name = match[2], match[3]
+            status = status.upper()
             if status == 'PASSED':
                 passed_tests.add(test_name)
+            elif status in ('FAILED', 'ERROR'):
+                failed_tests.add(test_name)
             elif status == 'SKIPPED':
                 skipped_tests.add(test_name)
-            elif status == 'FAILED':
-                failed_tests.add(test_name)
         parsed_results = {
             "passed_tests": passed_tests,
             "failed_tests": failed_tests,
