@@ -97,4 +97,5 @@ from multi_swe_bench.harness.repos.python.BoboTiG import *
 from multi_swe_bench.harness.repos.python.hdmf_dev import *
 from multi_swe_bench.harness.repos.python.astropy import *
 from multi_swe_bench.harness.repos.python.google import *
-
+from multi_swe_bench.harness.repos.python.aeon_toolkit import *
+from multi_swe_bench.harness.repos.python.AgnostiqHQ import *
